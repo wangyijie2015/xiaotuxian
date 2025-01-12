@@ -14,10 +14,12 @@ import com.cc.utils.SMSUtils;
 import com.cc.utils.ValidateCodeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -55,6 +57,7 @@ public class LiverServiceImpl extends ServiceImpl<LiverMapper, Liver> implements
 
     @Autowired
     private RedisTemplate redisTemplate;
+
 
 
 
@@ -308,30 +311,61 @@ public class LiverServiceImpl extends ServiceImpl<LiverMapper, Liver> implements
     @Override
     @Transactional
     public boolean returnParking(LiverAndParking liverAndParking) {
-        //查询停车费是否缴清
+        String PARKING_STATUS_UNPAID = "0";
+        String LIVER_PARKING_STATUS_UNBOUND = "1";
+        String PARK_STATUS_AVAILABLE = "0";
+
+        // 查询停车费是否缴清
         QueryWrapper<Park> parkWrapper = new QueryWrapper<>();
-        parkWrapper.lambda().eq(Park::getParkId,liverAndParking.getParkId())
-                .eq(Park::getLiverId,liverAndParking.getLiverId())
-                .eq(Park::getParkingStatus,"0");
-        Long count = parkMapper.selectCount(parkWrapper);
-        //车费已经缴清
-        if(count <= 0){
-            //解绑业主和车位的关系
-            LiverAndParking liverAndPark = new LiverAndParking();
-            liverAndPark.setLiverParkingStatus("1");
+        parkWrapper.eq("park_id", liverAndParking.getParkId())
+                .eq("liver_id", liverAndParking.getLiverId())
+                .eq("parking_status", PARKING_STATUS_UNPAID);
+        long unpaidCount = parkMapper.selectCount(parkWrapper);
+
+        // 如果车费已经缴清
+        if (unpaidCount <= 0) {
+            // 解绑业主和车位的关系
             QueryWrapper<LiverAndParking> liverAndParkingWrapper = new QueryWrapper<>();
-            liverAndParkingWrapper.lambda().eq(LiverAndParking::getParkId,liverAndParking.getParkId())
-                    .eq(LiverAndParking::getLiverId,liverAndParking.getLiverId());
-            liverAndParkingMapper.update(liverAndPark,liverAndParkingWrapper);
-            //更新车位的使用状态
+            liverAndParkingWrapper.eq("park_id", liverAndParking.getParkId())
+                    .eq("liver_id", liverAndParking.getLiverId());
+            LiverAndParking updateLiverAndParking = new LiverAndParking();
+            updateLiverAndParking.setLiverParkingStatus(LIVER_PARKING_STATUS_UNBOUND);
+            liverAndParkingMapper.update(updateLiverAndParking, liverAndParkingWrapper);
+
+            // 更新车位的使用状态
             Parking parking = new Parking();
-            parking.setParkStatus("0");
             parking.setParkId(liverAndParking.getParkId());
+            parking.setParkStatus(PARK_STATUS_AVAILABLE);
             parkingMapper.updateById(parking);
+
             return true;
         }
         return false;
     }
+//        //查询停车费是否缴清
+//        QueryWrapper<Park> parkWrapper = new QueryWrapper<>();
+//        parkWrapper.lambda().eq(Park::getParkId,liverAndParking.getParkId())
+//                .eq(Park::getLiverId,liverAndParking.getLiverId())
+//                .eq(Park::getParkingStatus,"0");
+//        Long count = parkMapper.selectCount(parkWrapper);
+//        //车费已经缴清
+//        if(count <= 0){
+//            //解绑业主和车位的关系
+//            LiverAndParking liverAndPark = new LiverAndParking();
+//            liverAndPark.setLiverParkingStatus("1");
+//            QueryWrapper<LiverAndParking> liverAndParkingWrapper = new QueryWrapper<>();
+//            liverAndParkingWrapper.lambda().eq(LiverAndParking::getParkId,liverAndParking.getParkId())
+//                    .eq(LiverAndParking::getLiverId,liverAndParking.getLiverId());
+//            liverAndParkingMapper.update(liverAndPark,liverAndParkingWrapper);
+//            //更新车位的使用状态
+//            Parking parking = new Parking();
+//            parking.setParkStatus("0");
+//            parking.setParkId(liverAndParking.getParkId());
+//            parkingMapper.updateById(parking);
+//            return true;
+//        }
+//        return false;
+//    }
 
     //根据用户名查询用户信息
     @Override
@@ -345,57 +379,70 @@ public class LiverServiceImpl extends ServiceImpl<LiverMapper, Liver> implements
     //删除业主
     @Override
     public boolean removeLiver(Integer liverId) {
-        //查询业主车位是否已退
-        QueryWrapper<LiverAndParking> parkingWrapper = new QueryWrapper<>();
-        parkingWrapper.lambda().eq(LiverAndParking::getLiverId,liverId);
-        Long parkingCount = liverAndParkingMapper.selectCount(parkingWrapper);
-        if (parkingCount > 0){
+        // 进行参数校验
+        if(liverId == null || liverId <=0){
             return false;
         }
-        //查询业主房屋是否已退
-        QueryWrapper<LiverAndHouse> houseWrapper = new QueryWrapper<>();
-        houseWrapper.lambda().eq(LiverAndHouse::getLiverId,liverId);
-        Long houseCount = liverAndHouseMapper.selectCount(houseWrapper);
-        if (houseCount > 0){
+
+        // 检查是否有相关联的记录
+        if(hasAssociatedRecords(liverId)){
             return false;
         }
-        //查询业主电费是否已缴清
-        QueryWrapper<Electric> electricWrapper = new QueryWrapper<>();
-        electricWrapper.lambda().eq(Electric::getLiverId,liverId);
-        Long electricCount = electricMapper.selectCount(electricWrapper);
-        if(electricCount > 0){
-            return false;
-        }
-        //查询业主水费是否已缴清
-        QueryWrapper<Water> waterWrapper = new QueryWrapper<>();
-        waterWrapper.lambda().eq(Water::getLiverId,liverId);
-        Long waterCount = waterMapper.selectCount(waterWrapper);
-        if (waterCount > 0){
-            return false;
-        }
+        // 对业主进行删除
         int count = baseMapper.deleteById(liverId);
-        //删除业成功也要删除业主角色关联
-        if(count > 0){
-            QueryWrapper<LiverAndRole> liverAndRoleWrapper = new QueryWrapper<>();
-            liverAndRoleWrapper.lambda().eq(LiverAndRole::getLiverId,liverId);
-            int delete = liverAndRoleMapper.delete(liverAndRoleWrapper);
-            return delete > 0;
+        if (count > 0) {
+            // 删除业主与角色的关联
+            liverAndRoleMapper.delete(new QueryWrapper<LiverAndRole>().eq("liver_id", liverId));
+            return true;
         }
+        return false;
+
+    }
+
+    private boolean hasAssociatedRecords(Integer liverId) {
+        // 检查车位
+        if (liverAndParkingMapper.selectCount(new QueryWrapper<LiverAndParking>().eq("liver_id", liverId)) > 0) {
+            return true;
+        }
+
+        // 检查房屋
+        if (liverAndHouseMapper.selectCount(new QueryWrapper<LiverAndHouse>().eq("liver_id", liverId)) > 0) {
+            return true;
+        }
+
+        // 检查电费
+        if (electricMapper.selectCount(new QueryWrapper<Electric>().eq("liver_id", liverId)) > 0) {
+            return true;
+        }
+
+        // 检查水费
+        if (waterMapper.selectCount(new QueryWrapper<Water>().eq("liver_id", liverId)) > 0) {
+            return true;
+        }
+
         return false;
     }
 
     //发送短信
+
+
+    @Async
     @Override
     public void sendMessage(String phoneNum) {
-        //生成验证码
-        Integer code = ValidateCodeUtils.generateValidateCode(4);
-        //调用腾讯云提供的短信服务API
-        SMSUtils.sendMessage(phoneNum, code.toString(),SMSUtils.templateId_validate);
-        //将验证码存到redis中
-        redisTemplate.opsForValue().set(phoneNum,code.toString(),5, TimeUnit.MINUTES);
+        CompletableFuture.runAsync(() -> {
+            // 生成验证码
+            Integer code = ValidateCodeUtils.generateValidateCode(4);
+            // 调用腾讯云提供的短信服务API
+            SMSUtils.sendMessage(phoneNum, code.toString(), SMSUtils.templateId_validate);
+            // 将验证码存到redis中
+            redisTemplate.opsForValue().set(phoneNum, code.toString(), 60, TimeUnit.MINUTES);
+        }).exceptionally(ex -> {
+            ex.printStackTrace(); // 处理异常
+            return null;
+        });
     }
 
-    //重置密码
+    //重置密码的异步优化
     @Override
     public boolean resetPass(ResetPassParm resetPassParm) {
         //获得输入的手机号和验证码
@@ -453,9 +500,6 @@ public class LiverServiceImpl extends ServiceImpl<LiverMapper, Liver> implements
     }
 
 
-    /**
-     * 都是私有的方法
-     */
     private String encodePassword(String rawPassword) {
         return passwordEncoder.encode(rawPassword);
     }
