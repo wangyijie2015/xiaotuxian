@@ -68,34 +68,4 @@ public class MyTreeUtils {
                 });
         return resultList;
     }
-
-//    public static List<RouterVO> makeRouter(List<Menu> menuList, Integer pid){
-//        List<RouterVO> list = new ArrayList<>();
-//        Optional.ofNullable(menuList).orElse(new ArrayList<>())
-//                .stream()
-//                .filter(item -> item != null && item.getParentId() == pid)
-//                .forEach(item -> {
-//                    RouterVO router = new RouterVO();
-//                    router.setName(item.getRouteName());
-//                    router.setPath(item.getRoutePath());
-//                    if(item.getParentId() == 0){
-//                        router.setComponent("Layout");
-//                        router.setAlwaysShow(true);
-//                    }else{
-//                        router.setComponent(item.getRouteUrl());
-//                        router.setAlwaysShow(false);
-//                    }
-//                    //设置meta
-//                    router.setMeta(router.new Meta(
-//                            item.getMenuLabel(),
-//                            item.getIcon(),
-//                            item.getMenuCode().split(",")
-//                    ));
-//                    //设置children,每一项的下级
-//                    List<RouterVO> children = makeRouter(menuList, item.getMenuId());
-//                    router.setChildren(children);
-//                    list.add(router);
-//                });
-//        return list;
-//    }
 }

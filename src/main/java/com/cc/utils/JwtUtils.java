@@ -53,13 +53,6 @@ public class JwtUtils {
         } catch (Exception e){
             return null;
         }
-//        Claims claims;
-//        try {
-//            claims = Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody();
-//        } catch (Exception e) {
-//            claims = null;
-//        }
-//        return claims;
     }
 
     /**
