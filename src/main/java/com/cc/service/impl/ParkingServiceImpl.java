@@ -9,6 +9,8 @@ import com.cc.domain.pojo.Parking;
 import com.cc.domain.parm.ParkingParm;
 import com.cc.mapper.ParkingMapper;
 import com.cc.service.ParkingService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,6 +23,9 @@ import java.util.Map;
  */
 @Service
 public class ParkingServiceImpl extends ServiceImpl<ParkingMapper, Parking> implements ParkingService {
+
+
+    private static final Logger logger = LoggerFactory.getLogger(ParkingServiceImpl.class);
 
     //分页查询
     @Override
@@ -38,9 +43,7 @@ public class ParkingServiceImpl extends ServiceImpl<ParkingMapper, Parking> impl
         }
         wrapper.lambda().orderByAsc(Parking::getParkNumber);
         //构造分页对象
-        IPage<Parking> page = new Page<>();
-        page.setCurrent(parkingParm.getCurrentPage());
-        page.setSize(parkingParm.getPageSize());
+        IPage<Parking> page = new Page<>(parkingParm.getCurrentPage(), parkingParm.getPageSize());
         return baseMapper.selectPage(page,wrapper);
     }
 
@@ -63,7 +66,6 @@ public class ParkingServiceImpl extends ServiceImpl<ParkingMapper, Parking> impl
     //小区车位使用情况饼形图
     @Override
     public Map<String, Object> getParkStatus() {
-        //返回结果容器
         Map<String,Object> resultMap = new HashMap<>();
         //示例容器
         List<String> parkingStatus = new ArrayList<>();
@@ -91,4 +93,5 @@ public class ParkingServiceImpl extends ServiceImpl<ParkingMapper, Parking> impl
         resultMap.put("parkingCount",parkingCount);
         return resultMap;
     }
+
 }
