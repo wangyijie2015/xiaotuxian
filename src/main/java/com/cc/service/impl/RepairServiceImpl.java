@@ -160,35 +160,4 @@ public class RepairServiceImpl extends ServiceImpl<RepairMapper, Repair> impleme
 
         return resultMap;
     }
-//    @Override
-//    public Map<String, Object> listForMonths() {
-//        //创建返回对象map
-//        Map<String,Object> resultMap = new HashMap<>();
-//        //处理x轴日期
-//        //创建日期集合
-//        List<String> repairMonths = new ArrayList<>();
-//        //获得日历对象
-//        Calendar calendar = Calendar.getInstance();
-//        //计算过去一年的六个月
-//        calendar.add(Calendar.MONTH, -6); //当前时间往前推6个月
-//        for (int i = 0; i < 6; i++) {
-//            calendar.add(Calendar.MONTH,1); //当前时间往后推一个月日期
-//            Date date = calendar.getTime();
-//            repairMonths.add(new SimpleDateFormat("yyyy-MM").format(date));
-//        }
-//        resultMap.put("repairMonths",repairMonths);
-//        //创建投诉数量集合
-//        List<Integer> repairCount = new ArrayList<>();
-//        //根据月份查询
-//        for (String repairMonth : repairMonths) {
-//            String afterDate = repairMonth + "-1";
-//            String beforeDate = repairMonth + "-31";
-//            Integer comCount = baseMapper.findRepCountByMonths(beforeDate,afterDate);
-//            repairCount.add(comCount);
-//        }
-//        resultMap.put("repairCount",repairCount);
-//        return resultMap;
-//    }
-
-
 }

@@ -65,18 +65,27 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
     //根据用户id查询权限
     @Override
     public List<Menu> getMenuByUserId(Integer userId) {
+        if(userId == null){
+            throw new IllegalArgumentException("用户ID不能为空");
+        }
         return this.baseMapper.getMenuByUserId(userId);
     }
 
     //根据业主id查询权限
     @Override
     public List<Menu> getMenuByLiverId(Integer liverId) {
+        if (liverId == null) {
+            throw new IllegalArgumentException("业主ID不能为空");
+        }
         return baseMapper.getMenuByLiverId(liverId);
     }
 
     //根据角色id查询权限
     @Override
     public List<Menu> getMenuByRoleId(Integer roleId) {
+        if (roleId == null) {
+            throw new IllegalArgumentException("角色ID不能为空");
+        }
         return this.baseMapper.getMenuByRoleId(roleId);
     }
 
