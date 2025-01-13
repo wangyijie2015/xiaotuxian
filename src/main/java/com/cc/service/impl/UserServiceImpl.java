@@ -24,11 +24,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.stream.Collectors;
+
 
 /**
  * 用户登录ServiceImpl层
@@ -60,38 +60,34 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Autowired
     private LiverMapper liverMapper;
 
+
     //用户登录
     @Override
     public LoginResult loginUser(LoginParm loginParm) {
         //加密密码
         String encode = passwordEncoder.encode(loginParm.getPassword());
         //生成spring security需要的token
-        UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(loginParm.getUsername() + ":" + loginParm.getUserType(), loginParm.getPassword());
-        Authentication authenticate = authenticationManager.authenticate(usernamePasswordAuthenticationToken);
-        //生成的token交给spring security的上下文
-        SecurityContextHolder.getContext().setAuthentication(authenticate);
-        //根据用户类型做不同处理
-        if (loginParm.getUserType().equals("0")) {
-            Liver liver = (Liver) authenticate.getPrincipal();
-            //生成token返回前端以及token过期时间
-            String token = jwtUtils.generateToken(loginParm.getUsername(), loginParm.getUserType());
-            Long time = jwtUtils.getExpireTime(token);
-            LoginResult result = new LoginResult();
-            result.setUserId(liver.getLiverId());
-            result.setToken(token);
-            result.setLostTime(time);
-            return result;
-        } else {
-            User user = (User) authenticate.getPrincipal();
-            //生成token返回前端以及token过期时间
-            String token = jwtUtils.generateToken(loginParm.getUsername(), loginParm.getUserType());
-            Long time = jwtUtils.getExpireTime(token);
-            LoginResult result = new LoginResult();
-            result.setUserId(user.getUserId());
-            result.setToken(token);
-            result.setLostTime(time);
-            return result;
+        UsernamePasswordAuthenticationToken tokenRequest =
+                new UsernamePasswordAuthenticationToken(loginParm.getUsername() + ":" + loginParm.getUserType(), loginParm.getPassword());
+        Authentication authentication = authenticationManager.authenticate(tokenRequest);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // 生成token返回前端和token过期时间
+        String token = jwtUtils.generateToken(loginParm.getUsername(), loginParm.getUserType());
+        Long expireTime = jwtUtils.getExpireTime(token);
+
+        LoginResult result = new LoginResult();
+        result.setToken(token);
+        result.setLostTime(expireTime);
+
+        // 设置用户的ID
+        Object principal = authentication.getPrincipal();
+        if(principal instanceof User){
+            result.setUserId(((User) principal).getUserId());
+        } else if(principal instanceof Liver){
+            result.setUserId(((Liver) principal).getLiverId());
         }
+        return result;
     }
 
     //获取用户信息
@@ -106,7 +102,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             UserInfo userInfo = new UserInfo();
             userInfo.setId(liver.getLiverId());
             userInfo.setName(liver.getLiverName());
-            userInfo.setAvatar("https://cdn.staticaly.com/gh/Pitayafruits/myPicRep@main/PropertyManage/202302211504129.png");
+            userInfo.setAvatar("https://img0.baidu.com/it/u=3600954679,641662266&fm=253&app=120&size=w931&n=0&f=JPEG&fmt=auto?sec=1736874000&t=2de1775b2cadab28df8c7d1a704ddcd8.jpg");
             //查询业主权限
             List<Menu> liverMenuList = menuService.getMenuByLiverId(liver.getLiverId());
             //获取权限字段
@@ -124,7 +120,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 UserInfo userInfo = new UserInfo();
                 userInfo.setId(usr.getUserId());
                 userInfo.setName(usr.getUsername());
-                userInfo.setAvatar("https://cdn.staticaly.com/gh/Pitayafruits/myPicRep@main/PropertyManage/202302211504129.png");
+                userInfo.setAvatar("https://img1.baidu.com/it/u=728383910,3448060628&fm=253&app=120&size=w931&n=0&f=JPEG&fmt=auto?sec=1736874000&t=a75b66d7c488fe59f2f9efd7c100f7a3.jpg");
                 //根据用户id查询权限
                 //查询物业权限
                 List<Menu> userMenuList = menuService.getMenuByUserId(user.getUserId());
@@ -173,7 +169,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     //获取菜单列表
     @Override
-    public List<RouterVO>  getMenu(HttpServletRequest request) {
+    public List<RouterVO> getMenu(HttpServletRequest request) {
         //获取token
         String token = request.getHeader("token");
         //获取用户名

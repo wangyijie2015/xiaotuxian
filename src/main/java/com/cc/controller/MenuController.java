@@ -50,7 +50,7 @@ public class MenuController {
         if (flag){
             return ResultUtils.success("删除成功！");
         }
-        return  ResultUtils.error("删除失败，当前删除对象存在下级!");
+        return  ResultUtils.error("删除失败，当前删除对象存在下级菜单!");
     }
 
     //父级菜单的查询
